@@ -1,5 +1,6 @@
 import os
 import uuid
+from typing import Dict, Any
 from contextlib import asynccontextmanager
 
 from dotenv import load_dotenv
@@ -28,7 +29,7 @@ async def root():
 
 
 @app.get("/about")
-async def get_dev():
+async def get_dev() -> Dict[str, Any]:
     return {
         "id": get_uuid(),
         "message": ("The goal is to design and implement a robust, "
