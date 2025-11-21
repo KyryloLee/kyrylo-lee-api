@@ -1,9 +1,11 @@
 import os
+import uuid
 from contextlib import asynccontextmanager
 
 from dotenv import load_dotenv
 from fastapi import FastAPI
 
+UUID = None
 
 @asynccontextmanager
 async def lifspan(app: FastAPI):
@@ -13,6 +15,12 @@ async def lifspan(app: FastAPI):
 load_dotenv() # loading the ".env" file
 app = FastAPI(lifespan=lifspan)
 
+def get_uuid() -> str:
+    global UUID
+    if UUID is None:
+        UUID = uuid.uuid1()
+    return UUID
+
 
 @app.get("/")
 async def root():
@@ -21,8 +29,11 @@ async def root():
 
 @app.get("/about")
 async def get_dev():
-    return {"message": ("The goal is to design and implement a robust, "
-                        "high-performance REST API, strictly adhering "
-                        "to strong backend development practices relevant "
-                        "to a microservices architecture, for the purpose "
-                        "of serving personal and professional data.")}
+    return {
+        "id": get_uuid(),
+        "message": ("The goal is to design and implement a robust, "
+                    "high-performance REST API, strictly adhering "
+                    "to strong backend development practices relevant "
+                    "to a microservices architecture, for the purpose "
+                    "of serving personal and professional data.")
+    }
