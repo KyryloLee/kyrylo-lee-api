@@ -1,13 +1,21 @@
 import os
-from typing import Dict, Any
+from datetime import datetime, timedelta, timezone
+from typing import Dict, Any, Annotated
 
+import jwt
 from dotenv import load_dotenv
-from fastapi import FastAPI, HTTPException
-from sqlmodel import create_engine, select, Session, SQLModel, Field
+from fastapi import FastAPI, HTTPException, Depends, status
+from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
+from jwt.exceptions import InvalidTokenError
+from pwdlib import PasswordHash
+from pydantic import BaseModel
 from sqlalchemy import Engine
+from sqlmodel import create_engine, select, Session, SQLModel, Field
 
 
-SQL_ENGINE: Engine | str = None
+SQL_ENGINE: Engine | None = None
+PSW_HASH: PasswordHash | None = None
+
 
 class Users(SQLModel, table=True):
     id: int | None = Field(primary_key=True)
@@ -16,9 +24,40 @@ class Users(SQLModel, table=True):
     can_invite: bool
 
 
+class PublicUser(BaseModel):
+    id: int
+    login: str
+    can_invite: bool
+
+
+class Token(BaseModel):
+    access_token: str
+    token_type: str
+
+
+class TokenData(BaseModel):
+    username: str | None = None
+
+
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 load_dotenv() # loading the ".env" file
 app = FastAPI()
 
+
+def create_psw_hash() -> None:
+    global PSW_HASH
+    PSW_HASH = PasswordHash.recommended()
+
+
+def verify_password(plain_password: str, hashed_password: str) -> bool:
+    if PSW_HASH is None: create_psw_hash()
+    return PSW_HASH.verify(password=plain_password, hash=hashed_password)
+
+
+def get_password_hash(password) -> str:
+    if PSW_HASH is None: create_psw_hash()
+    return PSW_HASH.hash(password=password)
+ 
 
 def create_sql_engine() -> None:
     global SQL_ENGINE
@@ -37,6 +76,28 @@ def get_user(login: str) -> Users | None:
     return result[0]
 
 
+def authenticate_user(username: str, password: str) -> Users | None:
+    user = get_user(login=username)
+    if user is None:
+        return None
+    if not verify_password(plain_password=password, hashed_password=user.hashed_password):
+        return None
+    return user
+
+
+def create_access_token(data: dict, expires_delta: timedelta | None = None):
+    to_encode = data.copy()
+    if expires_delta:
+        expire = datetime.now(timezone.utc) + expires_delta
+    else:
+        expire = datetime.now(timezone.utc) + timedelta(minutes=15)
+    secret_key = os.getenv('SECRET_KEY')
+    algorithm = os.getenv('ALGORITHM')
+    to_encode.update({"exp": expire})
+    encoded_jwt = jwt.encode(to_encode, secret_key, algorithm=algorithm)
+    return encoded_jwt
+
+
 @app.get("/")
 async def root():
     return {"message": "Hello! My name is Kyrylo Lee."}
@@ -51,17 +112,62 @@ async def get_dev() -> Dict[str, Any]:
                         "of serving personal and professional data.")}
 
 
-@app.get('/invite')
-async def create_invite_token():
-    return
-
-@app.get('/users/{user_login}')
-async def get_user_by_login(user_login: str):
-    result =  get_user(user_login)
+@app.get('/users')
+async def get_user_by_login(login: str) -> PublicUser:
+    result =  get_user(login)
     if result is None:
-        raise HTTPException(status_code=404, detail=f'The \'{user_login}\' not found.')
-    return {
-        'id': result.id,
-        'login': result.login,
-        'can_invite': result.can_invite
-    }
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f'The \'{login}\' not found.')
+    return PublicUser(
+        id=result.id,
+        login=result.login,
+        can_invite=result.can_invite
+    )
+
+
+async def get_current_user(token: Annotated[str, Depends(oauth2_scheme)]) -> Users:
+    credentail_exception = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail='Could not validate the credentails',
+        headers={"WWW-Authenticate": "Bearer"}
+    )
+    try:
+        payload = jwt.decode(
+            jwt=token,
+            key=os.getenv('SECRET_KEY'),
+            algorithms=[os.getenv('ALGORITHM')]
+        )
+        username = payload.get('sub')
+        if username is None:
+            raise credentail_exception
+        token_data = TokenData(username=username)
+    except InvalidTokenError:
+        raise credentail_exception
+    user = get_user(login=token_data.username)
+    if user is None:
+        raise credentail_exception
+    return user
+
+
+@app.post("/token")
+async def login(form_data: Annotated[OAuth2PasswordRequestForm, Depends()]):
+    user = authenticate_user(
+        username=form_data.username, 
+        password=form_data.password
+    )
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=f'The {form_data.username} is not authorised.',
+            headers={"WWW-Authenticate": "Bearer"}
+        )
+    access_token_expires = timedelta(minutes=10)
+    access_token = create_access_token(
+        data={'sub': user.login},
+        expires_delta=access_token_expires
+    )
+    return Token(access_token=access_token, token_type='bearer')
+
+
+@app.get('/invite')
+async def get_invite_code(current_user: Annotated[Users, Depends(get_current_user)]):
+    return {'invite_code': f'WELCOME {current_user.login}'}
