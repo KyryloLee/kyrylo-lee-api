@@ -24,7 +24,7 @@ class Users(SQLModel, table=True):
     can_invite: bool
 
 
-class PublicUser(BaseModel):
+class UserData(BaseModel):
     id: int
     login: str
     can_invite: bool
@@ -37,6 +37,23 @@ class Token(BaseModel):
 
 class TokenData(BaseModel):
     username: str | None = None
+
+
+class Invitation_Codes(SQLModel, table=True):
+    id: int = Field(primary_key=True)
+    code: str = Field(unique=True)
+    created_at: datetime
+    expires_at: datetime
+    max_uses: int
+    uses: int
+
+
+class InviteCodeData(BaseModel):
+    code: str
+    created_at: datetime
+    expires_at: datetime
+    max_uses: int
+    uses: int
 
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
@@ -62,7 +79,6 @@ def get_password_hash(password) -> str:
 def create_sql_engine() -> None:
     global SQL_ENGINE
     db_url = os.getenv('DEV_POSTGRES_URL')
-    db_url = db_url.replace('postgres:', 'postgresql+psycopg2:')
     SQL_ENGINE = create_engine(db_url, echo=True)
 
 
@@ -98,6 +114,40 @@ def create_access_token(data: dict, expires_delta: timedelta | None = None):
     return encoded_jwt
 
 
+async def get_current_user(token: Annotated[str, Depends(oauth2_scheme)]) -> Users:
+    credentail_exception = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail='Could not validate the credentails',
+        headers={"WWW-Authenticate": "Bearer"}
+    )
+    try:
+        payload = jwt.decode(
+            jwt=token,
+            key=os.getenv('SECRET_KEY'),
+            algorithms=[os.getenv('ALGORITHM')]
+        )
+        username = payload.get('iss')
+        if username is None:
+            raise credentail_exception
+        token_data = TokenData(username=username)
+    except InvalidTokenError:
+        raise credentail_exception
+    user = get_user(login=token_data.username)
+    if user is None:
+        raise credentail_exception
+    return user
+
+
+def get_invitation_code(code: str) -> Invitation_Codes | None:
+    if SQL_ENGINE is None: create_sql_engine()
+    with Session(SQL_ENGINE) as session:
+        statement = select(Invitation_Codes).where(Invitation_Codes.code == code)
+        response = session.exec(statement=statement).all()
+        if len(response) < 1:
+            return None
+        return response[0]
+
+
 @app.get("/")
 async def root():
     return {"message": "Hello! My name is Kyrylo Lee."}
@@ -112,40 +162,29 @@ async def get_dev() -> Dict[str, Any]:
                         "of serving personal and professional data.")}
 
 
-@app.get('/users')
-async def get_user_by_login(login: str) -> PublicUser:
+@app.get('/user')
+async def get_user_by_login(
+    login: str, 
+    current_user: Annotated[Users, Depends(get_current_user)]
+) -> UserData:
+    if current_user is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail='Token is invalid.',
+            headers={"WWW-Authenticate": "Bearer"}
+        )
     result =  get_user(login)
     if result is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f'The \'{login}\' not found.')
-    return PublicUser(
+    return UserData(
         id=result.id,
         login=result.login,
         can_invite=result.can_invite
     )
 
-
-async def get_current_user(token: Annotated[str, Depends(oauth2_scheme)]) -> Users:
-    credentail_exception = HTTPException(
-        status_code=status.HTTP_401_UNAUTHORIZED,
-        detail='Could not validate the credentails',
-        headers={"WWW-Authenticate": "Bearer"}
-    )
-    try:
-        payload = jwt.decode(
-            jwt=token,
-            key=os.getenv('SECRET_KEY'),
-            algorithms=[os.getenv('ALGORITHM')]
-        )
-        username = payload.get('sub')
-        if username is None:
-            raise credentail_exception
-        token_data = TokenData(username=username)
-    except InvalidTokenError:
-        raise credentail_exception
-    user = get_user(login=token_data.username)
-    if user is None:
-        raise credentail_exception
-    return user
+@app.post('/user')
+async def user_sign_in():
+    return None
 
 
 @app.post("/token")
@@ -162,12 +201,26 @@ async def login(form_data: Annotated[OAuth2PasswordRequestForm, Depends()]):
         )
     access_token_expires = timedelta(minutes=10)
     access_token = create_access_token(
-        data={'sub': user.login},
+        data={'iss': user.login},
         expires_delta=access_token_expires
     )
     return Token(access_token=access_token, token_type='bearer')
 
 
-@app.get('/invite')
-async def get_invite_code(current_user: Annotated[Users, Depends(get_current_user)]):
-    return {'invite_code': f'WELCOME {current_user.login}'}
+@app.get('/invite', description='Check status of a invitation code.')
+async def get_invite_code(
+    code: str, 
+    current_user: Annotated[Users, Depends(get_current_user)]
+) -> InviteCodeData:
+    invite_code = get_invitation_code(invitation=code)
+    if invite_code is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f'The "{code}" does not exist.'
+        )
+    return invite_code
+
+@app.post('/invite', description='Activate an invitation code.')
+async def register_code():
+    return None
+
