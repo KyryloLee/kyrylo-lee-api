@@ -24,7 +24,7 @@ class Users(SQLModel, table=True):
     can_invite: bool
 
 
-class UserData(BaseModel):
+class UserOut(BaseModel):
     id: int
     login: str
     can_invite: bool
@@ -78,7 +78,7 @@ def get_password_hash(password) -> str:
 
 def create_sql_engine() -> None:
     global SQL_ENGINE
-    db_url = os.getenv('DEV_POSTGRES_URL')
+    db_url = os.getenv('POSTGRES_URL')
     SQL_ENGINE = create_engine(db_url, echo=True)
 
 
@@ -115,9 +115,9 @@ def create_access_token(data: dict, expires_delta: timedelta | None = None):
 
 
 async def get_current_user(token: Annotated[str, Depends(oauth2_scheme)]) -> Users:
-    credentail_exception = HTTPException(
+    credential_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
-        detail='Could not validate the credentails',
+        detail='Could not validate the credentials',
         headers={"WWW-Authenticate": "Bearer"}
     )
     try:
@@ -128,13 +128,13 @@ async def get_current_user(token: Annotated[str, Depends(oauth2_scheme)]) -> Use
         )
         username = payload.get('iss')
         if username is None:
-            raise credentail_exception
+            raise credential_exception
         token_data = TokenData(username=username)
     except InvalidTokenError:
-        raise credentail_exception
+        raise credential_exception
     user = get_user(login=token_data.username)
     if user is None:
-        raise credentail_exception
+        raise credential_exception
     return user
 
 
@@ -166,21 +166,17 @@ async def get_dev() -> Dict[str, Any]:
 async def get_user_by_login(
     login: str, 
     current_user: Annotated[Users, Depends(get_current_user)]
-) -> UserData:
+) -> UserOut:
     if current_user is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail='Token is invalid.',
             headers={"WWW-Authenticate": "Bearer"}
         )
-    result =  get_user(login)
-    if result is None:
+    user =  get_user(login)
+    if user is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f'The \'{login}\' not found.')
-    return UserData(
-        id=result.id,
-        login=result.login,
-        can_invite=result.can_invite
-    )
+    return user
 
 @app.post('/user')
 async def user_sign_in():
@@ -196,7 +192,7 @@ async def login(form_data: Annotated[OAuth2PasswordRequestForm, Depends()]):
     if not user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail=f'The {form_data.username} is not authorised.',
+            detail=f'The {form_data.username} is not authorized.',
             headers={"WWW-Authenticate": "Bearer"}
         )
     access_token_expires = timedelta(minutes=10)
