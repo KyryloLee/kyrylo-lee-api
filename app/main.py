@@ -1,59 +1,23 @@
 import os
+import logging
 from datetime import datetime, timedelta, timezone
 from typing import Dict, Any, Annotated
 
 import jwt
 from dotenv import load_dotenv
-from fastapi import FastAPI, HTTPException, Depends, status
+from fastapi import FastAPI, HTTPException, Depends, status, Query
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from jwt.exceptions import InvalidTokenError
 from pwdlib import PasswordHash
-from pydantic import BaseModel
 from sqlalchemy import Engine
-from sqlmodel import create_engine, select, Session, SQLModel, Field
+from sqlmodel import create_engine, select, Session, insert, update
+
+from app.models.base import Token, InviteCode, UserOut
+from app.models.sql import Invitation_Codes, Users
 
 
 SQL_ENGINE: Engine | None = None
 PSW_HASH: PasswordHash | None = None
-
-
-class Users(SQLModel, table=True):
-    id: int | None = Field(primary_key=True)
-    login: str = Field(unique=True)
-    hashed_password: str
-    can_invite: bool
-
-
-class UserOut(BaseModel):
-    id: int
-    login: str
-    can_invite: bool
-
-
-class Token(BaseModel):
-    access_token: str
-    token_type: str
-
-
-class TokenData(BaseModel):
-    username: str | None = None
-
-
-class Invitation_Codes(SQLModel, table=True):
-    id: int = Field(primary_key=True)
-    code: str = Field(unique=True)
-    created_at: datetime
-    expires_at: datetime
-    max_uses: int
-    uses: int
-
-
-class InviteCodeData(BaseModel):
-    code: str
-    created_at: datetime
-    expires_at: datetime
-    max_uses: int
-    uses: int
 
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
@@ -114,10 +78,15 @@ def create_access_token(data: dict, expires_delta: timedelta | None = None):
     return encoded_jwt
 
 
-async def get_current_user(token: Annotated[str, Depends(oauth2_scheme)]) -> Users:
+def get_current_user(token: Annotated[str, Depends(oauth2_scheme)]) -> Users:
     credential_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail='Could not validate the credentials',
+        headers={"WWW-Authenticate": "Bearer"}
+    )
+    token_exception = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail='Invalid token.',
         headers={"WWW-Authenticate": "Bearer"}
     )
     try:
@@ -129,10 +98,12 @@ async def get_current_user(token: Annotated[str, Depends(oauth2_scheme)]) -> Use
         username = payload.get('iss')
         if username is None:
             raise credential_exception
-        token_data = TokenData(username=username)
+        expiration = datetime.fromtimestamp(payload.get('exp'),  timezone.utc)
+        if expiration < datetime.now(timezone.utc):
+            raise token_exception
     except InvalidTokenError:
-        raise credential_exception
-    user = get_user(login=token_data.username)
+        raise token_exception
+    user = get_user(login=username)
     if user is None:
         raise credential_exception
     return user
@@ -178,6 +149,7 @@ async def get_user_by_login(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f'The \'{login}\' not found.')
     return user
 
+
 @app.post('/user')
 async def user_sign_in():
     return None
@@ -205,9 +177,9 @@ async def login(form_data: Annotated[OAuth2PasswordRequestForm, Depends()]):
 
 @app.get('/invite', description='Check status of a invitation code.')
 async def get_invite_code(
-    code: str, 
-    current_user: Annotated[Users, Depends(get_current_user)]
-) -> InviteCodeData:
+    code: Annotated[str, Query(description='Invitation code.')], 
+    _: Annotated[Users, Depends(get_current_user)]
+) -> InviteCode:
     invite_code = get_invitation_code(invitation=code)
     if invite_code is None:
         raise HTTPException(
@@ -216,7 +188,26 @@ async def get_invite_code(
         )
     return invite_code
 
-@app.post('/invite', description='Activate an invitation code.')
-async def register_code():
-    return None
+
+@app.post(
+    '/invite', 
+    status_code=status.HTTP_201_CREATED, 
+    description='Create an invitation code.'
+)
+async def register_code(
+    current_user: Annotated[Users, Depends(get_current_user)],
+    code: InviteCode
+) -> InviteCode:
+    if SQL_ENGINE is None: create_sql_engine()
+    try:
+        with Session(SQL_ENGINE) as session:
+            new_code = Invitation_Codes(
+                created_by=current_user.login,
+                **code.model_dump()
+            )
+            session.add(new_code)
+            session.commit()
+    except:
+        raise
+    return code
 
