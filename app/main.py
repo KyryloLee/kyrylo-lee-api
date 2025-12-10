@@ -5,14 +5,14 @@ from typing import Dict, Any, Annotated
 
 import jwt
 from dotenv import load_dotenv
-from fastapi import FastAPI, HTTPException, Depends, status, Query
+from fastapi import FastAPI, HTTPException, Depends, status, Query, Body
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from jwt.exceptions import InvalidTokenError
 from pwdlib import PasswordHash
 from sqlalchemy import Engine
 from sqlmodel import create_engine, select, Session, insert, update
 
-from app.models.base import Token, InviteCode, UserOut
+from app.models.base import Token, InviteCode, UserOut, UserIn
 from app.models.sql import Invitation_Codes, Users
 
 
@@ -54,6 +54,25 @@ def get_user(login: str) -> Users | None:
     if len(result) < 1:
         return None
     return result[0]
+
+
+def create_user(login: str, password: str) -> Users:
+    if SQL_ENGINE is None: create_sql_engine()
+    if get_user(login) is not None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail='User already exists.'
+        ) 
+    with Session(SQL_ENGINE, expire_on_commit=False) as session:
+        hashed_password = get_password_hash(password)
+        user = Users(
+            login=login,
+            hashed_password=hashed_password,
+            can_invite=False
+        )
+        session.add(user)
+        session.commit()
+    return user
 
 
 def authenticate_user(username: str, password: str) -> Users | None:
@@ -113,10 +132,38 @@ def get_invitation_code(code: str) -> Invitation_Codes | None:
     if SQL_ENGINE is None: create_sql_engine()
     with Session(SQL_ENGINE) as session:
         statement = select(Invitation_Codes).where(Invitation_Codes.code == code)
-        response = session.exec(statement=statement).all()
-        if len(response) < 1:
-            return None
-        return response[0]
+        invite = session.exec(statement=statement).one_or_none
+    return invite
+  
+
+def use_invitation_code(code: str, revert: bool = False) -> Invitation_Codes:
+    if SQL_ENGINE is None: create_sql_engine()
+    with Session(SQL_ENGINE) as session:
+        statement = select(Invitation_Codes).where(Invitation_Codes.code == code)
+        invite = session.exec(statement=statement).one_or_none()
+        if invite is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail='Invitation code not found.'
+            )
+        expired_invite = HTTPException(
+            status_code=status.HTTP_410_GONE,
+            detail='The invitation code has expired.'
+        )
+        # if expiration datetime exists, check the constrain    
+        if invite.expires_at and invite.expires_at > datetime.now(timezone.utc):
+            raise expired_invite
+        # if max uses exists, check the constrain
+        if invite.max_uses and invite.max_uses < invite.uses:
+            raise expired_invite
+        # update invitation code uses
+        if revert:
+            invite.uses = max(0, invite.uses - 1)
+        else:
+            invite.uses += 1
+        session.add(invite)
+        session.commit()
+    return invite
 
 
 @app.get("/")
@@ -150,9 +197,18 @@ async def get_user_by_login(
     return user
 
 
-@app.post('/user')
-async def user_sign_in():
-    return None
+@app.post('/user', status_code=status.HTTP_201_CREATED)
+async def user_sign_in(
+    invite_code: Annotated[str, Body()],
+    user: UserIn
+) -> UserOut:
+    use_invitation_code(invite_code) # update invite code counter
+    try:
+        created_user = create_user(**user.model_dump())
+    except:
+        use_invitation_code(invite_code, revert=True) # revert invite code counter
+        raise
+    return created_user
 
 
 @app.post("/token")
@@ -199,15 +255,12 @@ async def register_code(
     code: InviteCode
 ) -> InviteCode:
     if SQL_ENGINE is None: create_sql_engine()
-    try:
-        with Session(SQL_ENGINE) as session:
-            new_code = Invitation_Codes(
-                created_by=current_user.login,
-                **code.model_dump()
-            )
-            session.add(new_code)
-            session.commit()
-    except:
-        raise
+    with Session(SQL_ENGINE) as session:
+        new_code = Invitation_Codes(
+            created_by=current_user.login,
+            **code.model_dump()
+        )
+        session.add(new_code)
+        session.commit()
     return code
 

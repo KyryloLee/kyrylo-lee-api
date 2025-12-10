@@ -6,9 +6,14 @@ from pydantic import BaseModel, Field
 DATE_FORMAT: str = '%Y%m%d'
 
 
-class UserOut(BaseModel):
-    id: int
+class BaseUser(BaseModel):
     login: str
+ 
+
+class UserIn(BaseUser):
+    password: str
+
+class UserOut(BaseUser):
     can_invite: bool
 
 
@@ -25,6 +30,6 @@ class InviteCode(BaseModel):
     code: str = Field(description='An invitation code.')
     expires_at: datetime | None = Field(
         default=None,
-        description=f'Expiration date UTC. Format = YYYY-MM-DD'
+        description=f'Expiration date. RFC 3339 format.'
     )
     max_uses: int | None = None
