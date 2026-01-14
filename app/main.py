@@ -12,7 +12,7 @@ from pwdlib import PasswordHash
 from sqlalchemy import Engine
 from sqlmodel import create_engine, select, Session, insert, update
 
-from app.models.base import Token, InviteCode, UserOut, UserIn
+from app.models.base import Token, InviteCode, UserOut, UserIn, MCPRequest
 from app.models.sql import Invitation_Codes, Users
 
 
@@ -264,3 +264,24 @@ def register_code(
         session.commit()
     return code
 
+@app.post("/mcp")
+async def mcp(req: MCPRequest):
+    if req.method == "tools/list":
+        return {
+            "jsonrpc": "2.0",
+            "id": req.id,
+            "result": {
+                "tools": {
+                    "about": {
+                        "description": "Get general information about this API",
+                        "input_schema": {
+                            "type": "object",
+                            "properties": {
+                                "user_id": {"type": "string"}
+                            },
+                            "required": ["user_id"]
+                        }
+                    }
+                }
+            }
+        }

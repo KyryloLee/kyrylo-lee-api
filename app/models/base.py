@@ -33,3 +33,10 @@ class InviteCode(BaseModel):
         description=f'Expiration date. RFC 3339 format.'
     )
     max_uses: int | None = None
+
+
+class MCPRequest(BaseModel):
+    jsonrpc: str
+    method: str
+    id: int | str
+    params: dict | None = None
