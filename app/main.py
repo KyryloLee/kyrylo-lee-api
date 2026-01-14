@@ -167,12 +167,12 @@ def use_invitation_code(code: str, revert: bool = False) -> Invitation_Codes:
 
 
 @app.get("/")
-async def root():
+def root():
     return {"message": "Hello! My name is Kyrylo Lee."}
 
 
 @app.get("/about")
-async def get_dev() -> Dict[str, Any]:
+def get_dev() -> Dict[str, Any]:
     return {"message": ("The goal is to design and implement a robust, "
                         "high-performance REST API, strictly adhering "
                         "to strong backend development practices relevant "
@@ -181,7 +181,7 @@ async def get_dev() -> Dict[str, Any]:
 
 
 @app.get('/user')
-async def get_user_by_login(
+def get_user_by_login(
     login: str, 
     current_user: Annotated[Users, Depends(get_current_user)]
 ) -> UserOut:
@@ -198,7 +198,7 @@ async def get_user_by_login(
 
 
 @app.post('/user', status_code=status.HTTP_201_CREATED)
-async def user_sign_in(
+def user_sign_in(
     invite_code: Annotated[str, Body()],
     user: UserIn
 ) -> UserOut:
@@ -212,7 +212,7 @@ async def user_sign_in(
 
 
 @app.post("/token")
-async def login(form_data: Annotated[OAuth2PasswordRequestForm, Depends()]):
+def login(form_data: Annotated[OAuth2PasswordRequestForm, Depends()]):
     user = authenticate_user(
         username=form_data.username, 
         password=form_data.password
@@ -232,7 +232,7 @@ async def login(form_data: Annotated[OAuth2PasswordRequestForm, Depends()]):
 
 
 @app.get('/invite', description='Check status of a invitation code.')
-async def get_invite_code(
+def get_invite_code(
     code: Annotated[str, Query(description='Invitation code.')], 
     _: Annotated[Users, Depends(get_current_user)]
 ) -> InviteCode:
@@ -250,7 +250,7 @@ async def get_invite_code(
     status_code=status.HTTP_201_CREATED, 
     description='Create an invitation code.'
 )
-async def register_code(
+def register_code(
     current_user: Annotated[Users, Depends(get_current_user)],
     code: InviteCode
 ) -> InviteCode:
