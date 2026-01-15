@@ -317,7 +317,7 @@ def mcp(req: MCPRequest):
             "jsonrpc": "2.0",
             "id": 1,
             "result": {
-                "protocolVersion": "2025-03-26",
+                "protocolVersion": "2025-11-25",
                 "capabilities": {
                     "logging": {},
                     "prompts": {
