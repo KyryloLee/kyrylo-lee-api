@@ -265,7 +265,8 @@ def register_code(
     return code
 
 @app.post("/mcp")
-async def mcp(req: MCPRequest):
+def mcp(req: MCPRequest):
+    logging.info(f'MCP request: {req}')
     if req.method == "tools/list":
         return {
             "jsonrpc": "2.0",
