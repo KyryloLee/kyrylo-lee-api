@@ -312,3 +312,29 @@ def mcp(req: MCPRequest):
                 ]
             }
         }
+    elif req.method == 'initialize':
+        return {
+            "jsonrpc": "2.0",
+            "id": 1,
+            "result": {
+                "protocolVersion": "2025-03-26",
+                "capabilities": {
+                    "logging": {},
+                    "prompts": {
+                        "listChanged": True
+                    },
+                    "resources": {
+                        "subscribe": True,
+                        "listChanged": True
+                    },
+                    "tools": {
+                        "listChanged": True
+                    }
+                },
+                "serverInfo": {
+                    "name": "kyrylo-lee-api",
+                    "version": "1.0.0"
+                },
+                "instructions": "Optional instructions for the client"
+            }
+        }
