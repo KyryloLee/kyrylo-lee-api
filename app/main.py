@@ -271,17 +271,43 @@ async def mcp(req: MCPRequest):
             "jsonrpc": "2.0",
             "id": req.id,
             "result": {
-                "tools": {
-                    "about": {
-                        "description": "Get general information about this API",
-                        "input_schema": {
-                            "type": "object",
-                            "properties": {
-                                "user_id": {"type": "string"}
-                            },
-                            "required": ["user_id"]
+                "tools": [
+                    {
+                        "about": {
+                            "description": "Get general information about this API",
+                            "input_schema": {
+                                "type": "object",
+                                "properties": {
+                                    "user_id": {"type": "string"}
+                                },
+                                "required": ["user_id"]
+                            }
+                        }
+                    },
+                    {
+                        "search": {
+                            "description": "Get general information about this API",
+                            "input_schema": {
+                                "type": "object",
+                                "properties": {
+                                    "user_id": {"type": "string"}
+                                },
+                                "required": ["user_id"]
+                            }
+                        }
+                    },
+                    {
+                        "fetch": {
+                            "description": "Get general information about this API",
+                            "input_schema": {
+                                "type": "object",
+                                "properties": {
+                                    "user_id": {"type": "string"}
+                                },
+                                "required": ["user_id"]
+                            }
                         }
                     }
-                }
+                ]
             }
         }
