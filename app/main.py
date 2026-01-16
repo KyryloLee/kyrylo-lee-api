@@ -265,8 +265,10 @@ def register_code(
     return code
 
 @app.post("/mcp")
-def mcp(req: Request):
-    logging.info(f'MCP request: {repr(req)}')
+async def mcp(request: Request):
+    req = await request.json()
+    logging.info(f'MCP request: {req}')
+    # print(req)
     if req.get('method') == "tools/list":
         return {
             "jsonrpc": "2.0",
@@ -327,7 +329,7 @@ def mcp(req: Request):
                         "listChanged": False
                     },
                     "tools": {
-                        "listChanged": False
+                        "listChanged": True
                     }
                 },
                 "serverInfo": {
