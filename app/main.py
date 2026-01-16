@@ -5,7 +5,7 @@ from typing import Dict, Any, Annotated
 
 import jwt
 from dotenv import load_dotenv
-from fastapi import FastAPI, HTTPException, Depends, status, Query, Body
+from fastapi import FastAPI, HTTPException, Depends, status, Query, Body, Request
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from jwt.exceptions import InvalidTokenError
 from pwdlib import PasswordHash
@@ -265,7 +265,8 @@ def register_code(
     return code
 
 @app.post("/mcp")
-def mcp(req: MCPRequest):
+def mcp(request: Request):
+    req = request.__dict__
     logging.info(f'MCP request: {req}')
     if req.method == "tools/list":
         return {
