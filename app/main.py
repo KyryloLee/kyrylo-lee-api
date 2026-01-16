@@ -265,13 +265,12 @@ def register_code(
     return code
 
 @app.post("/mcp")
-def mcp(request: Request):
-    req = request.__dict__
+def mcp(req: Request):
     logging.info(f'MCP request: {req}')
-    if req.method == "tools/list":
+    if req.get('method') == "tools/list":
         return {
             "jsonrpc": "2.0",
-            "id": req.id,
+            "id": req.get('id'),
             "result": {
                 "tools": [
                     {
@@ -313,10 +312,10 @@ def mcp(request: Request):
                 ]
             }
         }
-    elif req.method == 'initialize':
+    elif req.get('method') == 'initialize':
         return {
             "jsonrpc": "2.0",
-            "id": req.id,
+            "id": req.get('id'),
             "result": {
                 "protocolVersion": "2025-03-26",
                 "capabilities": {
@@ -337,4 +336,4 @@ def mcp(request: Request):
                 }
             }
         }
-    return {"jsonrpc": "2.0", "id": req.id, "error": {"code": -32601, "message": "Method not found"}}
+    return {"jsonrpc": "2.0", "id": req.get('id'), "error": {"code": -32601, "message": "Method not found"}}
