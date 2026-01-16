@@ -317,15 +317,31 @@ def mcp(req: MCPRequest):
             "jsonrpc": "2.0",
             "id": 1,
             "result": {
-                "protocolVersion": "2025-11-25",
+                "protocolVersion": "2025-03-26",
                 "capabilities": {
-                    "logging": {},
+                    "experimental": {
+                        "tasks": {
+                            "list": {},
+                            "cancel": {},
+                            "requests": {
+                                "tools": {
+                                    "call": {}
+                                },
+                                "prompts": {
+                                    "get": {}
+                                },
+                                "resources": {
+                                    "read": {}
+                                }
+                            }
+                        }
+                    },
                     "prompts": {
-                        "listChanged": True
+                        "listChanged": False
                     },
                     "resources": {
-                        "subscribe": True,
-                        "listChanged": True
+                        "subscribe": False,
+                        "listChanged": False
                     },
                     "tools": {
                         "listChanged": True
@@ -334,7 +350,6 @@ def mcp(req: MCPRequest):
                 "serverInfo": {
                     "name": "kyrylo-lee-api",
                     "version": "1.0.0"
-                },
-                "instructions": "Optional instructions for the client"
+                }
             }
         }
