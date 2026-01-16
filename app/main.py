@@ -315,27 +315,10 @@ def mcp(req: MCPRequest):
     elif req.method == 'initialize':
         return {
             "jsonrpc": "2.0",
-            "id": 1,
+            "id": req.id,
             "result": {
                 "protocolVersion": "2025-03-26",
                 "capabilities": {
-                    "experimental": {
-                        "tasks": {
-                            "list": {},
-                            "cancel": {},
-                            "requests": {
-                                "tools": {
-                                    "call": {}
-                                },
-                                "prompts": {
-                                    "get": {}
-                                },
-                                "resources": {
-                                    "read": {}
-                                }
-                            }
-                        }
-                    },
                     "prompts": {
                         "listChanged": False
                     },
@@ -344,7 +327,7 @@ def mcp(req: MCPRequest):
                         "listChanged": False
                     },
                     "tools": {
-                        "listChanged": True
+                        "listChanged": False
                     }
                 },
                 "serverInfo": {
@@ -353,3 +336,4 @@ def mcp(req: MCPRequest):
                 }
             }
         }
+    return {"jsonrpc": "2.0", "id": req.id, "error": {"code": -32601, "message": "Method not found"}}
