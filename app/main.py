@@ -276,40 +276,39 @@ async def mcp(request: Request):
             "result": {
                 "tools": [
                     {
-                        "about": {
-                            "description": "Get general information about this API",
-                            "input_schema": {
-                                "type": "object",
-                                "properties": {
-                                    "user_id": {"type": "string", "description":"user_id"}
-                                },
-                                "required": ["user_id"]
-                            }
+                        "name": "about",
+                        "description": "Get general information about this API",
+                        "inputSchema": {
+                            "type": "object",
+                            "properties": {
+                                "user_id": {"type": "string", "description":"user_id"}
+                            },
+                            "required": ["user_id"]
                         }
                     },
                     {
-                        "search": {
-                            "description": "Get general information about this API",
-                            "input_schema": {
-                                "type": "object",
-                                "properties": {
-                                    "user_id":  {"type": "string", "description":"user_id"}
-                                },
-                                "required": ["user_id"]
-                            }
+                        "name":"search",
+                        "description": "Get general information about this API",
+                        "input_schema": {
+                            "type": "object",
+                            "properties": {
+                                "user_id":  {"type": "string", "description":"user_id"}
+                            },
+                            "required": ["user_id"]
                         }
                     },
                     {
-                        "fetch": {
-                            "description": "Get general information about this API",
-                            "input_schema": {
-                                "type": "object",
-                                "properties": {
-                                    "user_id":  {"type": "string", "description":"user_id"}
-                                },
-                                "required": ["user_id"]
-                            }
+                        
+                        "name":"fetch",
+                        "description": "Get general information about this API",
+                        "input_schema": {
+                            "type": "object",
+                            "properties": {
+                                "user_id":  {"type": "string", "description":"user_id"}
+                            },
+                            "required": ["user_id"]
                         }
+                    
                     }
                 ]
             }
