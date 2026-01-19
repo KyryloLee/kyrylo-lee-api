@@ -319,13 +319,6 @@ async def mcp(request: Request):
             "result": {
                 "protocolVersion": "2025-03-26",
                 "capabilities": {
-                    "prompts": {
-                        "listChanged": False
-                    },
-                    "resources": {
-                        "subscribe": False,
-                        "listChanged": False
-                    },
                     "tools": {
                         "listChanged": True
                     }
