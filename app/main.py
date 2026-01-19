@@ -289,7 +289,7 @@ async def mcp(request: Request):
                     {
                         "name":"search",
                         "description": "Get general information about this API",
-                        "input_schema": {
+                        "inputSchema": {
                             "type": "object",
                             "properties": {
                                 "user_id":  {"type": "string", "description":"user_id"}
@@ -298,10 +298,9 @@ async def mcp(request: Request):
                         }
                     },
                     {
-                        
                         "name":"fetch",
                         "description": "Get general information about this API",
-                        "input_schema": {
+                        "inputSchema": {
                             "type": "object",
                             "properties": {
                                 "user_id":  {"type": "string", "description":"user_id"}
