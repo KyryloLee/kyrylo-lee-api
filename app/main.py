@@ -281,7 +281,7 @@ async def mcp(request: Request):
                             "input_schema": {
                                 "type": "object",
                                 "properties": {
-                                    "user_id": {"type": "string"}
+                                    "user_id": {"type": "string", "description":"user_id"}
                                 },
                                 "required": ["user_id"]
                             }
@@ -293,7 +293,7 @@ async def mcp(request: Request):
                             "input_schema": {
                                 "type": "object",
                                 "properties": {
-                                    "user_id": {"type": "string"}
+                                    "user_id":  {"type": "string", "description":"user_id"}
                                 },
                                 "required": ["user_id"]
                             }
@@ -305,7 +305,7 @@ async def mcp(request: Request):
                             "input_schema": {
                                 "type": "object",
                                 "properties": {
-                                    "user_id": {"type": "string"}
+                                    "user_id":  {"type": "string", "description":"user_id"}
                                 },
                                 "required": ["user_id"]
                             }
