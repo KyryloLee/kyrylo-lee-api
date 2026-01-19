@@ -329,4 +329,20 @@ async def mcp(request: Request):
                 }
             }
         }
+    elif req.get('resources/list'):
+        return {
+            "jsonrpc": "2.0",
+            "id": req.get('id'),
+            "result": {
+                "resources": [
+                    {
+                        "uri": "file:///project/src/main.rs",
+                        "name": "main.rs",
+                        "description": "Primary application entry point",
+                        "mimeType": "text/x-rust"
+                    }
+                ],
+                "nextCursor": "next-page-cursor"
+            }
+        }
     return {"jsonrpc": "2.0", "id": req.get('id'), "error": {"code": -32601, "message": "Method not found"}}
